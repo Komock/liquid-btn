@@ -74,11 +74,10 @@ $(function() {
 
 		let canvas = $canvas.get(0);
 		context = canvas.getContext('2d');
-		canvas.width = buttonWidth + 300;
-		canvas.height = buttonHeight + 300;
+		canvas.width = buttonWidth + 100;
+		canvas.height = buttonHeight + 100;
 
 		// Add points
-
 		var x = buttonHeight / 2;
 		for (var j = 1; j < points; j++) {
 			addPoints(pointsA, pointsB, (x + ((buttonWidth - buttonHeight) / points) * j), 0);
@@ -97,6 +96,7 @@ $(function() {
 	}
 
 	function renderCanvas() {
+		console.log('+')
 		// Clear scene
 		context.clearRect(0, 0, $canvas.width(), $canvas.height());
 		context.fillStyle = 'rgba(0,0,0, 0)';
@@ -199,7 +199,6 @@ $(function() {
 		this.y += this.vy;
 
 
-
 		if (showIndicators) {
 			// Draw points
 			context.fillStyle = '#000';
@@ -214,28 +213,41 @@ $(function() {
 			// Draw controls
 			context.fillStyle = '#f00';
 			context.beginPath();
-			for (var i = 0; i < pointsA.length; i++) {
-				var p = pointsA[i];
+			for (var j = 0; j < pointsA.length; j++) {
+				var p = pointsA[j];
 
 				context.rect(p.cx1 - 1, p.cy1 - 1, 2, 2);
 				context.rect(p.cx2 - 1, p.cy2 - 1, 2, 2);
 			}
 			context.fill();
 		}
-	}
+	};
 
-	
+	let renderTimeout = null,
+		renderInterval = null;
 
 	// Init
 	$('.btn-liquid').each(function(index) {
 		let btn = $(this);
 		initButton(btn);
-		$canvas.on('mousemove', (e)=> {
-			console.log('on');
+		function animation(event){
+			renderInterval = setInterval(()=>{
+				// requestAnimationFrame(renderCanvas);
+				renderCanvas();
+			}, 20);
+		}
+		$('body').on('mousemove', (e)=>{
 			mouseDirection(e);
-			// rAF
-			let rafID = requestAnimationFrame(renderCanvas);
 		});
-		
+		btn.on('mouseenter', (e)=>{
+			if (renderTimeout) clearTimeout(renderTimeout);
+			animation(e);
+		});
+		btn.on('mouseleave', (e) => {
+			setTimeout(()=>{
+				clearInterval(renderInterval);
+			}, 2000);
+			renderTimeout = setTimeout(()=>{}, 1000);
+		});
 	});
 });
