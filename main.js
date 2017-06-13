@@ -1,4 +1,4 @@
-$(function() {
+function liquidBTN(btnSelector) {
 	// Vars
 	let points = 8,
 		viscosity = 20,
@@ -96,7 +96,6 @@ $(function() {
 	}
 
 	function renderCanvas() {
-		console.log('+')
 		// Clear scene
 		context.clearRect(0, 0, $canvas.width(), $canvas.height());
 		context.fillStyle = 'rgba(0,0,0, 0)';
@@ -197,57 +196,33 @@ $(function() {
 		}
 		this.vy *= (1 - damping);
 		this.y += this.vy;
-
-
-		if (showIndicators) {
-			// Draw points
-			context.fillStyle = '#000';
-			context.beginPath();
-			for (var i = 0; i < pointsA.length; i++) {
-				var p = pointsA[i];
-
-				context.rect(p.x - 1, p.y - 1, 2, 2);
-			}
-			context.fill();
-
-			// Draw controls
-			context.fillStyle = '#f00';
-			context.beginPath();
-			for (var j = 0; j < pointsA.length; j++) {
-				var p = pointsA[j];
-
-				context.rect(p.cx1 - 1, p.cy1 - 1, 2, 2);
-				context.rect(p.cx2 - 1, p.cy2 - 1, 2, 2);
-			}
-			context.fill();
-		}
 	};
 
-	let renderTimeout = null,
-		renderInterval = null;
+	let rafID = null,
+		animationTimeout = null,
+		animationInterval = null,
+		cancelAnimationTimeout = null;
 
 	// Init
-	$('.btn-liquid').each(function(index) {
-		let btn = $(this);
-		initButton(btn);
-		function animation(event){
-			renderInterval = setInterval(()=>{
-				// requestAnimationFrame(renderCanvas);
-				renderCanvas();
-			}, 20);
-		}
-		$('body').on('mousemove', (e)=>{
-			mouseDirection(e);
-		});
-		btn.on('mouseenter', (e)=>{
-			if (renderTimeout) clearTimeout(renderTimeout);
-			animation(e);
-		});
-		btn.on('mouseleave', (e) => {
-			setTimeout(()=>{
-				clearInterval(renderInterval);
-			}, 2000);
-			renderTimeout = setTimeout(()=>{}, 1000);
-		});
+	let btn = $(btnSelector);
+	initButton(btn);
+	$('body').on('mousemove', (e)=> {
+		mouseDirection(e);
 	});
-});
+	btn.on('mouseenter', (e)=> {
+		console.log('mouseenter', animationTimeout, );
+		if (animationTimeout) clearTimeout(animationTimeout);
+		if (animationInterval) clearInterval(animationInterval);
+		animationInterval = setInterval(()=>{
+			requestAnimationFrame(renderCanvas);
+		}, 20);
+	});
+	btn.on('mouseleave', (e) => {
+		console.log('mouseleave');
+		animationTimeout = setTimeout(()=>{
+			clearInterval(animationInterval);
+		}, 2500);
+	});
+};
+liquidBTN('#btn-1');
+liquidBTN('#btn-2');
