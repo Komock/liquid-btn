@@ -1,3 +1,4 @@
+//====== Throttle for mouse move
 function throttle(func, ms) {
 	var isThrottled = false,
 		savedArgs,
@@ -22,17 +23,17 @@ function throttle(func, ms) {
 	return wrapper;
 }
 
-function liquidBTN(btnSelector) {
-	// Vars
-	let points = 8,
-		viscosity = 20,
-		mouseDist = 70,
+
+//====== liquidBTN
+function liquidBTN($btns) {
+	//====== Vars
+	let btnsObjectsArr = [],
+		points = 8,
+		viscosity = 10,
+		mouseDist = 50,
 		damping = 0.05,
-		showIndicators = false,
 		mouseX = 0,
 		mouseY = 0,
-		relMouseX = 0,
-		relMouseY = 0,
 		mouseLastX = 0,
 		mouseLastY = 0,
 		mouseDirectionX = 0,
@@ -40,14 +41,62 @@ function liquidBTN(btnSelector) {
 		mouseSpeedX = 0,
 		mouseSpeedY = 0;
 
-	let $canvas,
-		context,
-		pointsA = [],
-		pointsB = [];
+	//====== Point
+	function Point(x, y, level) {
+		this.x = this.ix = 50 + x;
+		this.y = this.iy = 50 + y;
+		this.vx = 0;
+		this.vy = 0;
+		this.cx1 = 0;
+		this.cy1 = 0;
+		this.cx2 = 0;
+		this.cy2 = 0;
+		this.level = level;
+	}
 
-	/**
-	 * Get mouse direction
-	 */
+	Point.prototype.move = function(btnObj) {
+		this.vx += (this.ix - this.x) / (viscosity * this.level);
+		this.vy += (this.iy - this.y) / (viscosity * this.level);
+
+		var dx = this.ix - btnObj.relMouseX,
+			dy = this.iy - btnObj.relMouseY;
+		var relDist = (1 - Math.sqrt((dx * dx) + (dy * dy)) / mouseDist);
+
+		// Move x
+		if ((mouseDirectionX > 0 && btnObj.relMouseX > this.x) || (mouseDirectionX < 0 && btnObj.relMouseX < this.x)) {
+			if (relDist > 0 && relDist < 1) {
+				this.vx = (mouseSpeedX / 4) * relDist;
+			}
+		}
+		this.vx *= (1 - damping);
+		this.x += this.vx;
+
+		// Move y
+		if ((mouseDirectionY > 0 && btnObj.relMouseY > this.y) || (mouseDirectionY < 0 && btnObj.relMouseY < this.y)) {
+			if (relDist > 0 && relDist < 1) {
+				this.vy = (mouseSpeedY / 4) * relDist;
+			}
+		}
+		this.vy *= (1 - damping);
+		this.y += this.vy;
+	};
+
+	//====== BtnObj
+	function BtnObj(index, $btn) {
+		this.index = index;
+		this.$btn = $btn;
+		this.bgColor = $btn.data('bgColor');
+		this.fgColor = $btn.data('fgColor');
+		this.canvas = null;
+		this.$canvas = null;
+		this.ctx = null;
+		this.pointsA = [];
+		this.pointsB = [];
+		this.relMouseX = 0;
+		this.relMouseY = 0;
+	}
+
+	//====== Get mouse direction
 	function mouseDirection(e) {
 		if (mouseX < e.pageX)
 			mouseDirectionX = 1;
@@ -66,13 +115,14 @@ function liquidBTN(btnSelector) {
 		mouseX = e.pageX;
 		mouseY = e.pageY;
 
-		relMouseX = (mouseX - $canvas.offset().left);
-		relMouseY = (mouseY - $canvas.offset().top);
+		btnsObjectsArr.forEach((btnObject, index) => {
+			btnObject.relMouseX = (mouseX - btnObject.$canvas.offset().left);
+			btnObject.relMouseY = (mouseY - btnObject.$canvas.offset().top);
+		});
+
 	}
 
-	/**
-	 * Get mouse speed
-	 */
+	//====== Get mouse speed
 	function mouseSpeed() {
 		mouseSpeedX = mouseX - mouseLastX;
 		mouseSpeedY = mouseY - mouseLastY;
@@ -84,22 +134,24 @@ function liquidBTN(btnSelector) {
 	}
 	mouseSpeed();
 
-	/**
-	 * Init button
-	 */
-	function initButton(button) {
+	//====== Init button
+	function initButton(btnObj) {
+		let $btn = btnObj.$btn,
+			pointsA = btnObj.pointsA,
+			pointsB = btnObj.pointsB;
+
 		// Get button
-		let buttonWidth = button.width(),
-			buttonHeight = button.height();
+		let buttonWidth = $btn.width(),
+			buttonHeight = $btn.height();
 
 		// Create canvas
-		$canvas = $('<canvas></canvas>');
-		button.append($canvas);
+		btnObj.$canvas = $('<canvas></canvas>');
+		$btn.append(btnObj.$canvas);
 
-		let canvas = $canvas.get(0);
-		context = canvas.getContext('2d');
-		canvas.width = buttonWidth + 100;
-		canvas.height = buttonHeight + 100;
+		btnObj.canvas = btnObj.$canvas.get(0);
+		btnObj.context = btnObj.canvas.getContext('2d');
+		btnObj.canvas.width = buttonWidth + 100;
+		btnObj.canvas.height = buttonHeight + 100;
 
 		// Add points
 		var x = buttonHeight / 2;
@@ -116,135 +168,97 @@ function liquidBTN(btnSelector) {
 		addPoints(pointsA, pointsB, -buttonHeight / 10, buttonHeight / 2);
 		addPoints(pointsA, pointsB, buttonHeight / 5, 0);
 
-		renderCanvas();
+		renderCanvas(btnObj);
 	}
 
-	function renderCanvas() {
+	function renderCanvas(btnObj) {
 		// Clear scene
-		context.clearRect(0, 0, $canvas.width(), $canvas.height());
-		context.fillStyle = 'rgba(0,0,0, 0)';
-		context.fillRect(0, 0, $canvas.width(), $canvas.height());
+		btnObj.context.clearRect(0, 0, btnObj.$canvas.width(), btnObj.$canvas.height());
+		btnObj.context.fillStyle = 'rgba(0,0,0, 0)';
+		btnObj.context.fillRect(0, 0, btnObj.$canvas.width(), btnObj.$canvas.height());
 
 		// Move points
-		for (var i = 0; i <= pointsA.length - 1; i++) {
-			pointsA[i].move();
-			pointsB[i].move();
+		for (var i = 0; i <= btnObj.pointsA.length - 1; i++) {
+			btnObj.pointsA[i].move(btnObj);
+			btnObj.pointsB[i].move(btnObj);
 		}
 
 		// Draw shapes
-		var groups = [pointsA, pointsB]
+		var groups = [btnObj.pointsA, btnObj.pointsB];
 
 		for (var j = 0; j <= 1; j++) {
 			var points = groups[j];
-
-			if (j == 0) {
+			if (j === 0) {
 				// Background style
-				context.fillStyle = '#1CE2D8';
+				btnObj.context.fillStyle = btnObj.bgColor;
 			} else {
 				// Foreground style
-				context.fillStyle = '#111';
+				btnObj.context.fillStyle = btnObj.fgColor;
 			}
 
-			context.beginPath();
-			context.moveTo(points[0].x, points[0].y);
+			btnObj.context.beginPath();
+			btnObj.context.moveTo(points[0].x, points[0].y);
 
 			for (var i = 0; i < points.length; i++) {
 				var p = points[i];
 				var nextP = points[i + 1];
 				var val = 30 * 0.552284749831;
 
-				if (nextP != undefined) {
+				if (nextP !== undefined) {
 					p.cx1 = (p.x + nextP.x) / 2;
 					p.cy1 = (p.y + nextP.y) / 2;
 					p.cx2 = (p.x + nextP.x) / 2;
 					p.cy2 = (p.y + nextP.y) / 2;
 
-					context.bezierCurveTo(p.x, p.y, p.cx1, p.cy1, p.cx1, p.cy1);
+					btnObj.context.bezierCurveTo(p.x, p.y, p.cx1, p.cy1, p.cx1, p.cy1);
 				} else {
 					nextP = points[0];
 					p.cx1 = (p.x + nextP.x) / 2;
 					p.cy1 = (p.y + nextP.y) / 2;
 
-					context.bezierCurveTo(p.x, p.y, p.cx1, p.cy1, p.cx1, p.cy1);
+					btnObj.context.bezierCurveTo(p.x, p.y, p.cx1, p.cy1, p.cx1, p.cy1);
 				}
 			}
-			context.fill();
-		};
+			btnObj.context.fill();
+		}
 	}
 
-	/**
-	 * Add points
-	 */
+	//====== Add points
 	function addPoints(pointsA, pointsB, x, y) {
 		pointsA.push(new Point(x, y, 1));
 		pointsB.push(new Point(x, y, 2));
 	}
 
-	/**
-	 * Point
-	 */
-	function Point(x, y, level) {
-		this.x = this.ix = 50 + x;
-		this.y = this.iy = 50 + y;
-		this.vx = 0;
-		this.vy = 0;
-		this.cx1 = 0;
-		this.cy1 = 0;
-		this.cx2 = 0;
-		this.cy2 = 0;
-		this.level = level;
-	}
+	//====== Init
+	$btns.each(function(index) {
+		let animationEndTimeout = null,
+			animationInterval = null,
+			$btn = $(this);
+		// Create BtnObj
+		let btnObj = new BtnObj(index, $btn);
+		btnsObjectsArr.push(btnObj);
+		// Init
+		initButton(btnObj);
+		let bindedRender = renderCanvas.bind(null, btnObj);
+		$btn.on('mouseenter', (e) => {
+			if (animationEndTimeout) clearTimeout(animationEndTimeout);
+			if (animationInterval) clearInterval(animationInterval);
+			animationInterval = setInterval(() => {
+				requestAnimationFrame(bindedRender);
+			}, 20);
+		});
+		$btn.on('mouseleave', (e) => {
+			animationEndTimeout = setTimeout(() => {
+				clearInterval(animationInterval);
+			}, 3500);
+		});
+	});
 
-	Point.prototype.move = function() {
-		this.vx += (this.ix - this.x) / (viscosity * this.level);
-		this.vy += (this.iy - this.y) / (viscosity * this.level);
-
-		var dx = this.ix - relMouseX,
-			dy = this.iy - relMouseY;
-		var relDist = (1 - Math.sqrt((dx * dx) + (dy * dy)) / mouseDist);
-
-		// Move x
-		if ((mouseDirectionX > 0 && relMouseX > this.x) || (mouseDirectionX < 0 && relMouseX < this.x)) {
-			if (relDist > 0 && relDist < 1) {
-				this.vx = (mouseSpeedX / 4) * relDist;
-			}
-		}
-		this.vx *= (1 - damping);
-		this.x += this.vx;
-
-		// Move y
-		if ((mouseDirectionY > 0 && relMouseY > this.y) || (mouseDirectionY < 0 && relMouseY < this.y)) {
-			if (relDist > 0 && relDist < 1) {
-				this.vy = (mouseSpeedY / 4) * relDist;
-			}
-		}
-		this.vy *= (1 - damping);
-		this.y += this.vy;
-	};
-
-	let animationTimeout = null,
-		animationInterval = null;
-
-	// Init
-	let btn = $(btnSelector),
-		mouseDataThrottled = throttle(mouseDirection, 70);
-	initButton(btn);
+	//====== Bind mousemove with throttling
+	let mouseDataThrottled = throttle(mouseDirection, 70);
 	$('body').on('mousemove', (e) => {
 		mouseDataThrottled(e);
 	});
-	btn.on('mouseenter', (e) => {
-		if (animationTimeout) clearTimeout(animationTimeout);
-		if (animationInterval) clearInterval(animationInterval);
-		animationInterval = setInterval(() => {
-			requestAnimationFrame(renderCanvas);
-		}, 20);
-	});
-	btn.on('mouseleave', (e) => {
-		animationTimeout = setTimeout(() => {
-			clearInterval(animationInterval);
-		}, 3000);
-	});
-};
+}
 
-liquidBTN('#btn-1');
-liquidBTN('#btn-2');
+liquidBTN($('.btn-liquid'));
