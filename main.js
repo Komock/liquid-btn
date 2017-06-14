@@ -1,3 +1,27 @@
+function throttle(func, ms) {
+	var isThrottled = false,
+		savedArgs,
+		savedThis;
+
+	function wrapper() {
+		if (isThrottled) { // (2)
+			savedArgs = arguments;
+			savedThis = this;
+			return;
+		}
+		func.apply(this, arguments); // (1)
+		isThrottled = true;
+		setTimeout(function() {
+			isThrottled = false; // (3)
+			if (savedArgs) {
+				wrapper.apply(savedThis, savedArgs);
+				savedArgs = savedThis = null;
+			}
+		}, ms);
+	}
+	return wrapper;
+}
+
 function liquidBTN(btnSelector) {
 	// Vars
 	let points = 8,
@@ -198,31 +222,29 @@ function liquidBTN(btnSelector) {
 		this.y += this.vy;
 	};
 
-	let rafID = null,
-		animationTimeout = null,
-		animationInterval = null,
-		cancelAnimationTimeout = null;
+	let animationTimeout = null,
+		animationInterval = null;
 
 	// Init
-	let btn = $(btnSelector);
+	let btn = $(btnSelector),
+		mouseDataThrottled = throttle(mouseDirection, 70);
 	initButton(btn);
-	$('body').on('mousemove', (e)=> {
-		mouseDirection(e);
+	$('body').on('mousemove', (e) => {
+		mouseDataThrottled(e);
 	});
-	btn.on('mouseenter', (e)=> {
-		console.log('mouseenter', animationTimeout, );
+	btn.on('mouseenter', (e) => {
 		if (animationTimeout) clearTimeout(animationTimeout);
 		if (animationInterval) clearInterval(animationInterval);
-		animationInterval = setInterval(()=>{
+		animationInterval = setInterval(() => {
 			requestAnimationFrame(renderCanvas);
 		}, 20);
 	});
 	btn.on('mouseleave', (e) => {
-		console.log('mouseleave');
-		animationTimeout = setTimeout(()=>{
+		animationTimeout = setTimeout(() => {
 			clearInterval(animationInterval);
-		}, 2500);
+		}, 3000);
 	});
 };
+
 liquidBTN('#btn-1');
 liquidBTN('#btn-2');
